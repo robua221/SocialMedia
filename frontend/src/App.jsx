@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, Link } from "react-router-dom";
+import { Routes, Route, Navigate, NavLink } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import Feed from "./pages/Feed";
 import Chat from "./pages/Chat";
@@ -6,6 +6,10 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import AuthHome from "./pages/AuthHome";
 import Profile from "./pages/Profile";
+import Explore from "./pages/Explore";
+import Notifications from "./pages/Notifications";
+import SearchBar from "./components/SearchBar";
+import SearchPage from "./pages/SearchPage";
 
 function PrivateRoute({ children }) {
   const { user } = useAuth();
@@ -21,21 +25,58 @@ export default function App() {
         <aside style={styles.sidebar}>
           <div style={styles.logo}>InstaClone</div>
 
-          <Link to="/" style={styles.sideItem}>
+          <NavLink
+            to="/"
+            className={({ isActive }) =>
+              "side-link" + (isActive ? " side-link-active" : "")
+            }
+          >
             🏠 Home
-          </Link>
-          <Link to="/chat" style={styles.sideItem}>
+          </NavLink>
+
+          <NavLink
+            to="/explore"
+            className={({ isActive }) =>
+              "side-link" + (isActive ? " side-link-active" : "")
+            }
+          >
+            🔍 Explore
+          </NavLink>
+          <NavLink
+            to="/notifications"
+            className={({ isActive }) =>
+              "side-link" + (isActive ? " side-link-active" : "")
+            }
+          >
+            🔔 Notifications
+          </NavLink>
+
+          <NavLink
+            to="/chat"
+            className={({ isActive }) =>
+              "side-link" + (isActive ? " side-link-active" : "")
+            }
+          >
             💬 Messages
-          </Link>
-          <Link to={`/profile/${user.username}`} style={styles.sideItem}>
+          </NavLink>
+
+          <NavLink
+            to={`/profile/${user.username}`}
+            className={({ isActive }) =>
+              "side-link" + (isActive ? " side-link-active" : "")
+            }
+          >
             👤 Profile
-          </Link>
+          </NavLink>
 
           <button onClick={logout} style={styles.logoutBtn}>
             Logout
           </button>
         </aside>
       )}
+      <div style={{ padding: "10px 25px" }}>
+        <SearchBar />
+      </div>
 
       <main style={styles.mainContent}>
         <Routes>
@@ -47,6 +88,15 @@ export default function App() {
               </PrivateRoute>
             }
           />
+          <Route
+            path="/search"
+            element={
+              <PrivateRoute>
+                <SearchPage />
+              </PrivateRoute>
+            }
+          />
+
           <Route
             path="/chat"
             element={
@@ -64,6 +114,15 @@ export default function App() {
             }
           />
           <Route
+            path="/notifications"
+            element={
+              <PrivateRoute>
+                <Notifications />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
             path="/login"
             element={user ? <Navigate to="/" /> : <Login />}
           />
@@ -76,6 +135,14 @@ export default function App() {
             element={user ? <Navigate to="/" /> : <AuthHome />}
           />
           <Route path="*" element={<Navigate to={user ? "/" : "/auth"} />} />
+          <Route
+            path="/explore"
+            element={
+              <PrivateRoute>
+                <Explore />
+              </PrivateRoute>
+            }
+          />
         </Routes>
       </main>
     </div>
