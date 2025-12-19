@@ -6,18 +6,21 @@ import { useAuth } from "../context/AuthContext";
 export default function Profile() {
   const { username } = useParams();
   const { user } = useAuth();
+
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
+  const [activeTab, setActiveTab] = useState("posts");
+
   const [editing, setEditing] = useState(false);
   const [editBio, setEditBio] = useState("");
-  const [editAvatarUrl, setEditAvatarUrl] = useState("");
+  const [avatarFile, setAvatarFile] = useState(null);
 
+  /* ---------------- LOAD PROFILE ---------------- */
   const load = async () => {
     try {
       const res = await api.get(`/users/${username}`);
       setProfile(res.data);
       setEditBio(res.data.user.bio || "");
-      setEditAvatarUrl(res.data.user.avatarUrl || "");
 
       const postsRes = await api.get("/posts", {
         params: { authorId: res.data.user._id },
@@ -32,43 +35,43 @@ export default function Profile() {
     load();
   }, [username]);
 
+  /* ---------------- FOLLOW / UNFOLLOW ---------------- */
   const toggleFollow = async () => {
     try {
       const res = await api.post(`/users/${profile.user._id}/follow`);
-      setProfile((prev) =>
-        prev
-          ? {
-              ...prev,
-              isFollowing: res.data.following,
-              followersCount:
-                prev.followersCount + (res.data.following ? 1 : -1),
-            }
-          : prev
-      );
+      setProfile((prev) => ({
+        ...prev,
+        isFollowing: res.data.following,
+        followersCount: prev.followersCount + (res.data.following ? 1 : -1),
+      }));
     } catch (err) {
       console.error(err);
     }
   };
 
+  /* ---------------- SAVE PROFILE (FILE UPLOAD) ---------------- */
   const saveProfile = async () => {
     try {
-      const res = await api.patch("/users/me", {
-        bio: editBio,
-        avatarUrl: editAvatarUrl,
+      const formData = new FormData();
+      formData.append("bio", editBio);
+      if (avatarFile) {
+        formData.append("avatar", avatarFile);
+      }
+
+      const res = await api.patch("/users/me", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
-      setProfile((prev) =>
-        prev
-          ? {
-              ...prev,
-              user: {
-                ...prev.user,
-                bio: res.data.bio,
-                avatarUrl: res.data.avatarUrl,
-              },
-            }
-          : prev
-      );
+
+      setProfile((prev) => ({
+        ...prev,
+        user: {
+          ...prev.user,
+          ...res.data,
+        },
+      }));
+
       setEditing(false);
+      // setAvatarFile(null);
     } catch (err) {
       console.error(err);
     }
@@ -81,33 +84,34 @@ export default function Profile() {
 
   return (
     <div>
+      {/* ---------------- PROFILE HEADER ---------------- */}
       <div style={styles.header}>
         <div style={styles.avatarBig}>
           {profileUser.avatarUrl ? (
-            <img
-              src={profileUser.avatarUrl}
-              style={{ width: "100%", height: "100%", borderRadius: "50%" }}
-            />
+            <img src={profileUser.avatarUrl} style={styles.avatarImg} />
           ) : (
             profileUser.username[0].toUpperCase()
           )}
         </div>
-        <div>
+
+        <div style={{ flex: 1 }}>
           <div style={styles.usernameRow}>
             <span style={styles.username}>{profileUser.username}</span>
+
             {isMe ? (
               <button
-                style={styles.followBtn}
+                style={styles.outlineBtn}
                 onClick={() => setEditing((p) => !p)}
               >
                 {editing ? "Cancel" : "Edit Profile"}
               </button>
             ) : (
-              <button style={styles.followBtn} onClick={toggleFollow}>
+              <button style={styles.primaryBtn} onClick={toggleFollow}>
                 {profile.isFollowing ? "Following" : "Follow"}
               </button>
             )}
           </div>
+
           <div style={styles.stats}>
             <span>
               <b>{profile.postCount}</b> posts
@@ -120,16 +124,19 @@ export default function Profile() {
             </span>
           </div>
 
-          {!editing && <div style={styles.bio}>{profileUser.bio}</div>}
+          {!editing && profileUser.bio && (
+            <div style={styles.bio}>{profileUser.bio}</div>
+          )}
 
           {editing && (
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: 10 }}>
               <input
-                placeholder="Avatar URL"
-                value={editAvatarUrl}
-                onChange={(e) => setEditAvatarUrl(e.target.value)}
+                type="file"
+                accept="image/*"
+                onChange={(e) => setAvatarFile(e.target.files[0])}
                 style={styles.input}
               />
+
               <textarea
                 placeholder="Bio"
                 value={editBio}
@@ -137,7 +144,8 @@ export default function Profile() {
                 rows={3}
                 style={{ ...styles.input, resize: "vertical" }}
               />
-              <button style={styles.followBtn} onClick={saveProfile}>
+
+              <button style={styles.primaryBtn} onClick={saveProfile}>
                 Save
               </button>
             </div>
@@ -145,81 +153,146 @@ export default function Profile() {
         </div>
       </div>
 
-      <hr style={{ borderColor: "#222", margin: "20px 0" }} />
+      {/* ---------------- TABS ---------------- */}
+      <div style={styles.tabs}>
+        <button
+          onClick={() => setActiveTab("posts")}
+          style={{
+            ...styles.tabBtn,
+            borderBottom: activeTab === "posts" ? "2px solid #fff" : "none",
+          }}
+        >
+          POSTS
+        </button>
 
-      <div style={styles.grid}>
-        {posts.map((p) => (
-          <img key={p._id} src={p.imageUrl} style={styles.gridImage} />
-        ))}
+        <button
+          onClick={() => setActiveTab("liked")}
+          style={{
+            ...styles.tabBtn,
+            borderBottom: activeTab === "liked" ? "2px solid #fff" : "none",
+          }}
+        >
+          LIKED
+        </button>
       </div>
+
+      {/* ---------------- GRID ---------------- */}
+      {activeTab === "posts" && (
+        <div style={styles.grid}>
+          {posts.map((p) => (
+            <img key={p._id} src={p.imageUrl} style={styles.gridImage} />
+          ))}
+        </div>
+      )}
+
+      {activeTab === "liked" && (
+        <div style={styles.empty}>Liked posts coming soon</div>
+      )}
     </div>
   );
 }
 
+/* ===================== STYLES ===================== */
+
 const styles = {
   header: {
     display: "flex",
-    gap: "24px",
+    gap: 28,
     alignItems: "center",
+    marginBottom: 30,
   },
   avatarBig: {
-    width: "80px",
-    height: "80px",
+    width: 110,
+    height: 110,
     borderRadius: "50%",
     background: "#333",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    fontSize: "32px",
-    fontWeight: "700",
+    fontSize: 42,
+    fontWeight: 700,
     overflow: "hidden",
+  },
+  avatarImg: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
   },
   usernameRow: {
     display: "flex",
     alignItems: "center",
-    gap: "12px",
-    marginBottom: "10px",
+    gap: 14,
+    marginBottom: 12,
   },
   username: {
-    fontSize: "20px",
-    fontWeight: "600",
+    fontSize: 22,
+    fontWeight: 600,
   },
-  followBtn: {
-    padding: "6px 12px",
-    borderRadius: "6px",
-    border: "none",
+  primaryBtn: {
+    padding: "6px 14px",
+    borderRadius: 8,
     background: "#0095f6",
     color: "#fff",
+    border: "none",
+    fontWeight: 600,
     cursor: "pointer",
-    fontWeight: "600",
+  },
+  outlineBtn: {
+    padding: "6px 14px",
+    borderRadius: 8,
+    background: "transparent",
+    color: "#fff",
+    border: "1px solid #333",
+    cursor: "pointer",
   },
   stats: {
     display: "flex",
-    gap: "16px",
-    fontSize: "14px",
-    marginBottom: "8px",
+    gap: 22,
+    fontSize: 14,
+    marginBottom: 10,
   },
   bio: {
-    fontSize: "14px",
+    fontSize: 14,
+    maxWidth: 400,
   },
   input: {
     width: "100%",
-    padding: "8px",
-    borderRadius: "8px",
+    padding: 8,
+    borderRadius: 8,
     border: "1px solid #333",
     background: "#000",
     color: "#fff",
-    marginBottom: "6px",
-    fontSize: "14px",
+    marginBottom: 6,
+  },
+  tabs: {
+    display: "flex",
+    justifyContent: "center",
+    gap: 40,
+    borderTop: "1px solid #222",
+    borderBottom: "1px solid #222",
+    marginBottom: 20,
+  },
+  tabBtn: {
+    padding: "12px 0",
+    background: "transparent",
+    border: "none",
+    color: "#fff",
+    cursor: "pointer",
+    fontWeight: 600,
   },
   grid: {
     display: "grid",
     gridTemplateColumns: "repeat(3, 1fr)",
-    gap: "4px",
+    gap: 4,
   },
   gridImage: {
     width: "100%",
     aspectRatio: "1 / 1",
     objectFit: "cover",
+  },
+  empty: {
+    textAlign: "center",
+    color: "#777",
+    marginTop: 40,
   },
 };

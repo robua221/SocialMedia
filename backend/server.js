@@ -26,6 +26,7 @@ connectDB();
 
 app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
 app.use(express.json());
+app.use("/uploads", express.static("uploads"));
 
 // REST routes
 app.use("/api/auth", authRoutes);
@@ -34,6 +35,8 @@ app.use("/api/users", userRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/uploads", express.static("uploads"));
+
 const onlineUsers = new Map();
 
 app.set("io", io);
