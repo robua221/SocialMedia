@@ -7,11 +7,14 @@ const Notification = require("../models/Notification");
 const router = express.Router();
 
 /* ---------------------------------------------------------
-   NEW ROUTE — Return all users for DM list
+   GET ALL USERS (FOR DM LIST)
 --------------------------------------------------------- */
 router.get("/all", auth, async (req, res) => {
   try {
-    const users = await User.find().select("_id username avatarUrl");
+    const users = await User.find({
+      _id: { $ne: req.user._id },
+    }).select("_id username avatarUrl");
+
     res.json({ users });
   } catch (err) {
     console.error("Error fetching all users:", err);
@@ -20,7 +23,7 @@ router.get("/all", auth, async (req, res) => {
 });
 
 /* ---------------------------------------------------------
-   GET CURRENT USER PROFILE
+   CURRENT USER PROFILE
 --------------------------------------------------------- */
 router.get("/me", auth, async (req, res) => {
   try {
@@ -39,6 +42,9 @@ router.get("/me", auth, async (req, res) => {
   }
 });
 
+/* ---------------------------------------------------------
+   USER PROFILE BY USERNAME
+--------------------------------------------------------- */
 router.get("/:username", auth, async (req, res) => {
   try {
     const profileUser = await User.findOne({
@@ -50,9 +56,9 @@ router.get("/:username", auth, async (req, res) => {
 
     const postCount = await Post.countDocuments({ author: profileUser._id });
 
-    const isMe = profileUser._id.toString() === req.user._id.toString();
-    const isFollowing = profileUser.followers.some(
-      (id) => id.toString() === req.user._id.toString()
+    const isMe = profileUser._id.equals(req.user._id);
+    const isFollowing = profileUser.followers.some((id) =>
+      id.equals(req.user._id)
     );
 
     res.json({
@@ -70,7 +76,7 @@ router.get("/:username", auth, async (req, res) => {
 });
 
 /* ---------------------------------------------------------
-   FOLLOW / UNFOLLOW USER
+   FOLLOW / UNFOLLOW USER + NOTIFICATION
 --------------------------------------------------------- */
 router.post("/:id/follow", auth, async (req, res) => {
   try {
@@ -85,29 +91,25 @@ router.post("/:id/follow", auth, async (req, res) => {
 
     if (!target) return res.status(404).json({ message: "User not found" });
 
-    const alreadyFollowing = me.following.some(
-      (id) => id.toString() === targetId
-    );
+    const alreadyFollowing = me.following.some((id) => id.equals(targetId));
 
     if (alreadyFollowing) {
       // UNFOLLOW
-      me.following = me.following.filter((id) => id.toString() !== targetId);
-      target.followers = target.followers.filter(
-        (id) => id.toString() !== req.user._id.toString()
-      );
+      me.following.pull(targetId);
+      target.followers.pull(req.user._id);
     } else {
       // FOLLOW
       me.following.push(targetId);
       target.followers.push(req.user._id);
 
-      // Create notification
+      // CREATE NOTIFICATION
       const notif = await Notification.create({
         receiver: target._id,
         sender: req.user._id,
         type: "follow",
       });
 
-      // Emit to online user
+      // REAL-TIME EMIT
       const io = req.app.get("io");
       const onlineUsers = req.app.get("onlineUsers");
       const receiverSocketId = onlineUsers?.get(target._id.toString());

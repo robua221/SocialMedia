@@ -10,6 +10,7 @@ import Explore from "./pages/Explore";
 import Notifications from "./pages/Notifications";
 import SearchBar from "./components/SearchBar";
 import SearchPage from "./pages/SearchPage";
+import { useNotifications } from "./context/NotificationContext";
 
 function PrivateRoute({ children }) {
   const { user } = useAuth();
@@ -18,6 +19,7 @@ function PrivateRoute({ children }) {
 
 export default function App() {
   const { user, logout } = useAuth();
+  const { unreadCount } = useNotifications();
 
   return (
     <div style={styles.appWrapper}>
@@ -47,8 +49,10 @@ export default function App() {
             className={({ isActive }) =>
               "side-link" + (isActive ? " side-link-active" : "")
             }
+            style={{ position: "relative" }}
           >
             🔔 Notifications
+            {unreadCount > 0 && <span style={styles.badge}>{unreadCount}</span>}
           </NavLink>
 
           <NavLink
@@ -183,6 +187,22 @@ const styles = {
     border: "none",
     cursor: "pointer",
   },
+  badge: {
+    position: "absolute",
+    top: "-4px",
+    right: "-8px",
+    background: "red",
+    color: "#fff",
+    fontSize: "11px",
+    fontWeight: "700",
+    borderRadius: "50%",
+    width: "18px",
+    height: "18px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
   mainContent: {
     flex: 1,
     padding: "20px",

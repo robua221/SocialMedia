@@ -1,50 +1,22 @@
-import { useEffect, useState } from "react";
-import api from "../apiClient";
+import { useNotifications } from "../context/NotificationContext";
 import { formatDistanceToNow } from "date-fns";
 
 export default function Notifications() {
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  const load = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get("/notifications");
-      setNotifications(res.data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const markAllRead = async () => {
-    try {
-      await api.post("/notifications/mark-all-read");
-      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  useEffect(() => {
-    load();
-  }, []);
+  const { notifications, markAllRead } = useNotifications();
 
   return (
     <div>
       <div style={styles.header}>
         <h2>Notifications</h2>
-        {notifications.some((n) => !n.isRead) && (
+
+        {notifications.length > 0 && notifications.some((n) => !n.isRead) && (
           <button style={styles.markBtn} onClick={markAllRead}>
             Mark all as read
           </button>
         )}
       </div>
 
-      {loading ? (
-        <div>Loading...</div>
-      ) : notifications.length === 0 ? (
+      {notifications.length === 0 ? (
         <div style={{ color: "#aaa", marginTop: 12 }}>
           No notifications yet.
         </div>
@@ -62,6 +34,7 @@ export default function Notifications() {
                 {n.sender?.avatarUrl ? (
                   <img
                     src={n.sender.avatarUrl}
+                    alt=""
                     style={{
                       width: "100%",
                       height: "100%",
@@ -72,6 +45,7 @@ export default function Notifications() {
                   n.sender?.username?.[0]?.toUpperCase()
                 )}
               </div>
+
               <div style={{ flex: 1 }}>
                 <div style={styles.text}>{renderText(n)}</div>
                 <div style={styles.time}>
@@ -80,6 +54,7 @@ export default function Notifications() {
                   })}
                 </div>
               </div>
+
               {n.post?.imageUrl && (
                 <img src={n.post.imageUrl} style={styles.thumb} />
               )}
@@ -142,7 +117,7 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: 10,
-    padding: "8px 8px",
+    padding: "8px",
     borderRadius: 8,
     marginBottom: 6,
   },
